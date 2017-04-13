@@ -3,10 +3,8 @@ package com.acgb.greychainlabs.pikit;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
-import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothSocket;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -15,13 +13,11 @@ import android.content.IntentFilter;
 import android.content.res.Resources;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
-import android.os.Build;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.NotificationCompat;
 import android.util.Log;
-import android.view.Gravity;
 import android.view.View;
 import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
@@ -31,11 +27,8 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
-import android.widget.ListView;
-import android.widget.PopupWindow;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -48,33 +41,33 @@ import java.util.UUID;
 public class MainActivityOnPikIt extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
 
-    public BluetoothAdapter BA;
+    public BluetoothAdapter blAdapter;
     public static OutputStream outStream = null;
-    private Set<BluetoothDevice> pairedDevices;
-    ListView lv;
-    BluetoothAdapter bluetoothAdapter = null;
-    Context context = null;
-    public BluetoothSocket mmSocket = null;
-    public BluetoothDevice mmDevice = null;
+    BluetoothAdapter bAdapter = null;
+    public BluetoothSocket mSocket = null;
+    public BluetoothDevice mDevice = null;
     public TextView conStatus;
     public ImageView imgStatus;
     public ImageButton button;
-    public int stst;
-    private static final String TAG = "bluetooth";
+    // setting up the process in order
+    public int status;
 
     // SPP UUID service
-    public static final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
-    public static String address = "98:D3:35:00:A6:A9";
+    public static final UUID myUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+    public static String mac_address = "98:D3:35:00:A6:A9";
     static byte[] msgBuffer = new byte[1024];
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // setting up the xml
         setContentView(R.layout.activity_main_on_pik_it);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
+        // floating action button
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -93,39 +86,44 @@ public class MainActivityOnPikIt extends AppCompatActivity
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
 
+        // diaplaying the default bluetooth status not connected
         conStatus = (TextView) findViewById(R.id.StatusTextView);
         conStatus.setText("Not Connected");
 
+        // changing the color of the wheel
         Resources res = getResources();
         Drawable imgDrawableStatus = res.getDrawable(R.drawable.red);
         imgStatus = (ImageView) findViewById(R.id.imageView2);
         imgStatus.setImageDrawable(imgDrawableStatus);
 
+        // calling the bluetooth connectivity method
         bluetoothConnectivity();
 
+
         IntentFilter filter1 = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
-        registerReceiver(mBroadcastReceiver1, filter1);
-        registerReceiver(mReceiver, new IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED));
+        registerReceiver(bluetoothStatus, filter1);
+        registerReceiver(pairingStatus, new IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED));
 
         IntentFilter filter = new IntentFilter();
         filter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
         filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED);
         filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
-        this.registerReceiver(bstate, filter);
+        this.registerReceiver(connectionState, filter);
 
     }
 
+    // calling the following methods
     public void bluetoothConnectivity() {
-        BA = BluetoothAdapter.getDefaultAdapter();
-        on();
-        pairedDevice();
+        blAdapter = BluetoothAdapter.getDefaultAdapter();
+        bluetoothOn();
+        pairedWallet();
 
-        // Toast.makeText(getApplicationContext(), "You have successfully connected with the wallet", Toast.LENGTH_LONG).show();
     }
 
-    public void on() {
-        stst = 2;
-        if (!BA.isEnabled()) {
+    // checking whether bluetooth is enabled
+    public void bluetoothOn() {
+        status = 2;
+        if (!blAdapter.isEnabled()) {
             Intent turnOn = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(turnOn, 0);
 
@@ -139,9 +137,10 @@ public class MainActivityOnPikIt extends AppCompatActivity
 
     }
 
-    public void pairDevice(BluetoothDevice device) {
+    // pairing with the wallet
+    public void pairWallet(BluetoothDevice device) {
         try {
-            stst = 3;
+            status = 3;
             Method method = device.getClass().getMethod("createBond", (Class[]) null); //pairing the bluetooth
             method.invoke(device, (Object[]) null);
 
@@ -150,14 +149,16 @@ public class MainActivityOnPikIt extends AppCompatActivity
         }
     }
 
-    public void pairedDevice() {
+    // showing the list of paired devices
+    // if the wallet is not paired it will manually pair
+    public void pairedWallet() {
 
         int count = 0;
 
         try {
-            if (BA.isEnabled()) {
-                bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-                Set<BluetoothDevice> pairedDevice = bluetoothAdapter.getBondedDevices(); //list of paired device
+            if (blAdapter.isEnabled()) {
+                bAdapter = BluetoothAdapter.getDefaultAdapter();
+                Set<BluetoothDevice> pairedDevice = bAdapter.getBondedDevices(); //list of paired device
 
                 if (pairedDevice.size() > 0) { //list to check the paired devices
 
@@ -166,9 +167,9 @@ public class MainActivityOnPikIt extends AppCompatActivity
                         if (device.getAddress().equals("98:D3:35:00:A6:A9")) {
                             count = 1;
                             Log.i("count", "1");
-                            connectThread();
-                            connectToDevice();
-                            // Toast.makeText(getApplicationContext(), "You have successfully connected with the wallet", Toast.LENGTH_LONG).show();
+                            // calling the connecting methods
+                            createSocket();
+                            connectToWallet();
                         }
                     }
 
@@ -176,8 +177,8 @@ public class MainActivityOnPikIt extends AppCompatActivity
                 if (count == 0) { // HC-06 isn't paired
                     Log.i("Error", "Connect to your wallet");
                     Toast.makeText(getApplicationContext(), "You are pairing with the wallet", Toast.LENGTH_LONG).show();
-                    BluetoothDevice device = bluetoothAdapter.getRemoteDevice("98:D3:35:00:A6:A9");//selecting the HC-06
-                    pairDevice(device);// pairing the Hc-06
+                    BluetoothDevice device = bAdapter.getRemoteDevice("98:D3:35:00:A6:A9");//selecting the HC-06
+                    pairWallet(device);// pairing the Hc-06
 
                 }
             }
@@ -186,39 +187,40 @@ public class MainActivityOnPikIt extends AppCompatActivity
         }
     }
 
-    public void connectThread() {
+    // creating a socket
+    public void createSocket() {
 
-        BluetoothDevice device = bluetoothAdapter.getRemoteDevice("98:D3:35:00:A6:A9"); //declaring our device
+        BluetoothDevice device = bAdapter.getRemoteDevice("98:D3:35:00:A6:A9"); //declaring our device
 
         BluetoothSocket tmp = null; // creating a socket
-        mmDevice = device;
+        mDevice = device;
 
         try {
-//            UUID uuid = mmDevice.getUuids()[0].getUuid(); //get the UUID of our app
 
-            tmp = device.createRfcommSocketToServiceRecord(MY_UUID); // assigning the UUID to the socket
+            tmp = device.createRfcommSocketToServiceRecord(myUUID); // assigning the UUID to the socket
 
         } catch (IOException e) {
             Log.e("Error", "Socket's create() method failed", e);
         }
-        mmSocket = tmp;
+        mSocket = tmp;
 
     }
 
-    public void connectToDevice() {
+    // connecting to the wallet using bluetooth
+    public void connectToWallet() {
 
         // cancel discovery of the all bluetooth adaptors
-        bluetoothAdapter.cancelDiscovery();
-        BA.cancelDiscovery();
+        bAdapter.cancelDiscovery();
+        blAdapter.cancelDiscovery();
 
         try {
             // Connect to the remote device through the socket. This call blocks
             // until it succeeds or throws an exception.
-            mmSocket.connect();
+            mSocket.connect();
             conStatus = (TextView) findViewById(R.id.StatusTextView);
             conStatus.setText("Connected");
 
-            outStream = mmSocket.getOutputStream();
+            outStream = mSocket.getOutputStream();
 
             Resources res = getResources();
             Drawable imgDrawableStatus = res.getDrawable(R.drawable.green);
@@ -228,7 +230,7 @@ public class MainActivityOnPikIt extends AppCompatActivity
         } catch (IOException connectException) {
             // Unable to connect; close the socket and return.
             try {
-                mmSocket.close();
+                mSocket.close();
 
             } catch (IOException closeException) {
                 Log.e("Error", "Could not close the client socket", closeException);
@@ -238,8 +240,8 @@ public class MainActivityOnPikIt extends AppCompatActivity
 
     }
 
-
-    private final BroadcastReceiver mBroadcastReceiver1 = new BroadcastReceiver() {
+    // identifying the states of bluetooth in the device
+    private final BroadcastReceiver bluetoothStatus = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
 
@@ -251,6 +253,7 @@ public class MainActivityOnPikIt extends AppCompatActivity
                 final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR);
 
                 switch (state) {
+                    // if the state is off
                     case BluetoothAdapter.STATE_OFF:
                         Toast.makeText(getApplicationContext(), "OFF", Toast.LENGTH_LONG).show();
                         conStatus = (TextView) findViewById(R.id.StatusTextView);
@@ -262,6 +265,7 @@ public class MainActivityOnPikIt extends AppCompatActivity
 
                         break;
 
+                    // if the state is turning off
                     case BluetoothAdapter.STATE_TURNING_OFF:
                         Toast.makeText(getApplicationContext(), "TURNING_OFF", Toast.LENGTH_LONG).show();
                         conStatus = (TextView) findViewById(R.id.StatusTextView);
@@ -272,6 +276,7 @@ public class MainActivityOnPikIt extends AppCompatActivity
 
                         break;
 
+                    // if the state is on
                     case BluetoothAdapter.STATE_ON:
                         Toast.makeText(getApplicationContext(), "ON", Toast.LENGTH_LONG).show();
                         conStatus = (TextView) findViewById(R.id.StatusTextView);
@@ -282,6 +287,7 @@ public class MainActivityOnPikIt extends AppCompatActivity
 
                         break;
 
+                    // if the state is turning on
                     case BluetoothAdapter.STATE_TURNING_ON:
                         Toast.makeText(getApplicationContext(), "TURNING_ON", Toast.LENGTH_LONG).show();
                         conStatus = (TextView) findViewById(R.id.StatusTextView);
@@ -298,12 +304,13 @@ public class MainActivityOnPikIt extends AppCompatActivity
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        unregisterReceiver(mBroadcastReceiver1);
-        unregisterReceiver(mReceiver);
-        unregisterReceiver(bstate);
+        unregisterReceiver(bluetoothStatus);
+        unregisterReceiver(pairingStatus);
+        unregisterReceiver(connectionState);
     }
 
-    private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
+    // getting the paring status
+    private final BroadcastReceiver pairingStatus = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
 
@@ -314,6 +321,7 @@ public class MainActivityOnPikIt extends AppCompatActivity
             int state = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE,
                     BluetoothDevice.ERROR);
 
+            // if the state is paired
             if (state == BluetoothDevice.BOND_BONDED) {
                 Toast.makeText(getApplicationContext(), "Paired", Toast.LENGTH_LONG).show();
                 conStatus = (TextView) findViewById(R.id.StatusTextView);
@@ -322,6 +330,7 @@ public class MainActivityOnPikIt extends AppCompatActivity
                 imgStatus = (ImageView) findViewById(R.id.imageView2);
                 imgStatus.setImageDrawable(imgDrawableStatus1);
 
+                //if the state is pairing
             } else if (state == BluetoothDevice.BOND_BONDING) {
                 Toast.makeText(getApplicationContext(), "Pairing in process", Toast.LENGTH_LONG).show();
                 conStatus = (TextView) findViewById(R.id.StatusTextView);
@@ -330,6 +339,7 @@ public class MainActivityOnPikIt extends AppCompatActivity
                 imgStatus = (ImageView) findViewById(R.id.imageView2);
                 imgStatus.setImageDrawable(imgDrawableStatus1);
 
+                // if the state is unpaired
             } else if (state == BluetoothDevice.BOND_NONE) {
                 Toast.makeText(getApplicationContext(), "unpaired", Toast.LENGTH_LONG).show();
                 conStatus = (TextView) findViewById(R.id.StatusTextView);
@@ -338,6 +348,7 @@ public class MainActivityOnPikIt extends AppCompatActivity
                 imgStatus = (ImageView) findViewById(R.id.imageView2);
                 imgStatus.setImageDrawable(imgDrawableStatus1);
 
+                // if the state is undefined or any other mentioned above
             } else {
                 Toast.makeText(getApplicationContext(), "undefined", Toast.LENGTH_LONG).show();
                 conStatus = (TextView) findViewById(R.id.StatusTextView);
@@ -349,7 +360,8 @@ public class MainActivityOnPikIt extends AppCompatActivity
         }
     };
 
-    private final BroadcastReceiver bstate = new BroadcastReceiver() {
+    // checking whether the wallet is connected
+    private final BroadcastReceiver connectionState = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
 
@@ -359,6 +371,9 @@ public class MainActivityOnPikIt extends AppCompatActivity
 
             String action = intent.getAction();
             BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+
+
+            // if the device is found
             if (BluetoothDevice.ACTION_FOUND.equals(action)) {
                 Toast.makeText(getApplicationContext(), "Found", Toast.LENGTH_LONG).show();
                 conStatus = (TextView) findViewById(R.id.StatusTextView);
@@ -367,6 +382,7 @@ public class MainActivityOnPikIt extends AppCompatActivity
                 imgStatus = (ImageView) findViewById(R.id.imageView2);
                 imgStatus.setImageDrawable(imgDrawableStatus1);
 
+                // if the device is connected
             } else if (BluetoothDevice.ACTION_ACL_CONNECTED.equals(action)) {
                 Toast.makeText(getApplicationContext(), "Connected", Toast.LENGTH_LONG).show();
                 conStatus = (TextView) findViewById(R.id.StatusTextView);
@@ -375,6 +391,7 @@ public class MainActivityOnPikIt extends AppCompatActivity
                 imgStatus = (ImageView) findViewById(R.id.imageView2);
                 imgStatus.setImageDrawable(imgDrawableStatus);
 
+               // if the discovery is finished
             } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
                 Toast.makeText(getApplicationContext(), "Found", Toast.LENGTH_LONG).show();
 
@@ -384,6 +401,7 @@ public class MainActivityOnPikIt extends AppCompatActivity
                 imgStatus = (ImageView) findViewById(R.id.imageView2);
                 imgStatus.setImageDrawable(imgDrawableStatus1);
 
+                // if the device is about to disconnect
             } else if (BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED.equals(action)) {
                 Toast.makeText(getApplicationContext(), "About to disconnect", Toast.LENGTH_LONG).show();
 
@@ -393,6 +411,7 @@ public class MainActivityOnPikIt extends AppCompatActivity
                 imgStatus = (ImageView) findViewById(R.id.imageView2);
                 imgStatus.setImageDrawable(imgDrawableStatus);
 
+                // if the device is disconnected
             } else if (BluetoothDevice.ACTION_ACL_DISCONNECTED.equals(action)) {
                 Toast.makeText(getApplicationContext(), "Disconnected", Toast.LENGTH_LONG).show();
 
@@ -406,6 +425,7 @@ public class MainActivityOnPikIt extends AppCompatActivity
         }
     };
 
+    // setting up the notifications
     public void notificationView() {
         PendingIntent pi = PendingIntent.getActivity(this, 0, new Intent(this, MainActivityOnPikIt.class), 0);
         Resources res = getResources();
@@ -432,76 +452,36 @@ public class MainActivityOnPikIt extends AppCompatActivity
     }
 
 
-    public BluetoothSocket createBluetoothSocket(BluetoothDevice device) throws IOException {
-        if (Build.VERSION.SDK_INT >= 10) {
-            try {
-                final Method m = device.getClass().getMethod("createInsecureRfcommSocketToServiceRecord", new Class[]{UUID.class});
-                return (BluetoothSocket) m.invoke(device, MY_UUID);
-            } catch (Exception e) {
-                Log.e(TAG, "Could not create Insecure RFComm Connection", e);
-            }
-        }
-        return device.createRfcommSocketToServiceRecord(MY_UUID);
-    }
+//    public BluetoothSocket createBluetoothSocket(BluetoothDevice device) throws IOException {
+//        if (Build.VERSION.SDK_INT >= 10) {
+//            try {
+//                final Method m = device.getClass().getMethod("createInsecureRfcommSocketToServiceRecord", new Class[]{UUID.class});
+//                return (BluetoothSocket) m.invoke(device, MY_UUID);
+//            } catch (Exception e) {
+//                Log.e(TAG, "Could not create Insecure RFComm Connection", e);
+//            }
+//        }
+//        return device.createRfcommSocketToServiceRecord(MY_UUID);
+//    }
 
+    // sending the byte value to the arduino chip
     public static void sendData(String message) throws IOException {
 
-//        BluetoothAdapter bb = BluetoothAdapter.getDefaultAdapter();
-//
-//        BluetoothDevice device = bb.getRemoteDevice("98:D3:35:00:A6:A9"); //declaring our device
-//
-//        BluetoothSocket tmp = null; // creating a socket
-//        mmDevice = device;
-//
-//        try {
-////            UUID uuid = mmDevice.getUuids()[0].getUuid(); //get the UUID of our app
-//
-//            tmp = device.createRfcommSocketToServiceRecord(MY_UUID); // assigning the UUID to the socket
-//
-//        } catch (IOException e) {
-//            Log.e("Error", "Socket's create() method failed", e);
-//        }
-//        mmSocket = tmp;
-//
-//        outStream = mmSocket.getOutputStream();
-
         msgBuffer = message.getBytes();
-
 
         try {
             outStream.write(msgBuffer);
         } catch (IOException e) {
             String msg = "In onResume() and an exception occurred during write: " + e.getMessage();
-            if (address.equals("98:D3:35:00:A6:A9"))
+            if (mac_address.equals("98:D3:35:00:A6:A9"))
                 msg = msg + ".\n\nUpdate your server address from 00:00:00:00:00:00 to the correct address on line 35 in the java code";
-            msg = msg + ".\n\nCheck that the SPP UUID: " + MY_UUID.toString() + " exists on server.\n\n";
+            msg = msg + ".\n\nCheck that the SPP UUID: " + myUUID.toString() + " exists on server.\n\n";
 
             errorExit("Fatal Error", msg);
         }
 
 
     }
-
-    //    @Override
-//    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-//        if(stst == 2) {
-//            if (resultCode == -1) {
-//                Toast.makeText(this, "Bluetooth enabled", Toast.LENGTH_LONG).show();
-//
-//            } else if (resultCode == 0) {
-//                Toast.makeText(this, "User canceled", Toast.LENGTH_LONG).show();
-//            }
-//        } else if(stst == 3) {
-//            if (resultCode == -1) {
-//                Toast.makeText(this, "Bluetooth enabled", Toast.LENGTH_LONG).show();
-//                connectThread();
-//            } else if (resultCode == 0) {
-//                Toast.makeText(this, "User canceled", Toast.LENGTH_LONG).show();
-//            }
-//        }
-//
-//
-//    }
 
 
     @Override
@@ -568,15 +548,6 @@ public class MainActivityOnPikIt extends AppCompatActivity
                 // button.setColorFilter(Color.BLUE);
                 bluetoothConnectivity();
 
-
-//                ColorDrawable buttonColor = (ColorDrawable) button.getBackground();
-//                int colorID = buttonColor.getColor();
-//
-//                if(colorID == Color.BLACK){
-//                    button.setColorFilter(Color.BLUE);
-//                }else{
-//                    button.setColorFilter(Color.BLACK);
-//               }
             }
 
         });
@@ -584,6 +555,7 @@ public class MainActivityOnPikIt extends AppCompatActivity
 
     }
 
+    // functionality of unlock button
     public void addListenerOnUnlockButton(View v) {
 
         button = (ImageButton) findViewById(R.id.unlock);
@@ -593,16 +565,9 @@ public class MainActivityOnPikIt extends AppCompatActivity
 
             @Override
             public void onClick(View v) {
+                // open a new activity to the pin
                Intent intent = new Intent(MainActivityOnPikIt.this, PinScreen.class);
                 startActivity(intent);
-////                finish();
-//                try {
-//                    sendData("1");
-//                } catch (IOException e) {
-//                    e.printStackTrace();
-//                }
-//                Toast.makeText(getApplicationContext(), "Wallet Locked", Toast.LENGTH_LONG).show();
-
 
             }
 
@@ -610,6 +575,7 @@ public class MainActivityOnPikIt extends AppCompatActivity
 
     }
 
+    // functionality of lock button (send 0)
     public void addListenerOnLockButton(View v) {
 
         button = (ImageButton) findViewById(R.id.lock);

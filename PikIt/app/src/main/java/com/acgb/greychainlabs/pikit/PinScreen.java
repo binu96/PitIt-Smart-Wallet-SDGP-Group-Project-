@@ -1,7 +1,5 @@
 package com.acgb.greychainlabs.pikit;
 
-import android.content.Intent;
-import android.graphics.Color;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -14,13 +12,13 @@ import android.widget.Toast;
 
 import java.io.IOException;
 
+// for the pin functionality
 public class PinScreen extends AppCompatActivity {
 
+    // the pin number
     public String userPin = "8888";
 
-    TextView titleView;
-    TextView statusView;
-
+    // declaring all the buttons to make a virtual keyboard
     public ImageButton button;
     Button button0;
     Button button1;
@@ -32,12 +30,10 @@ public class PinScreen extends AppCompatActivity {
     Button button7;
     Button button8;
     Button button9;
-    Button button10;
-    ImageButton buttonExit;
     ImageButton buttonDelete;
-    ImageButton buttonEnter;
     EditText passwordInput;
 
+    // declaring the user entered string
     public String userEntered = "";
 
     @Override
@@ -45,11 +41,10 @@ public class PinScreen extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_pin_screen);
 
-
-
+        // displaying the user entered value
+        // and updating while the user enters
         View.OnClickListener pinButtonHandler = new View.OnClickListener() {
             public void onClick(View v) {
-
                 Button pressedButton = (Button) v;
 
                 passwordInput = (EditText) findViewById(R.id.editText);
@@ -66,6 +61,7 @@ public class PinScreen extends AppCompatActivity {
 
         };
 
+        // deleting the string values from the pin
         View.OnClickListener deletePass = new View.OnClickListener() {
             public void onClick(View v) {
 
@@ -89,53 +85,46 @@ public class PinScreen extends AppCompatActivity {
         };
 
 
+        // setting the values of the buttons and adding the listeners
         buttonDelete = (ImageButton) findViewById(R.id.buttonDelete);
-        //button0.setTypeface(xpressive);
         buttonDelete.setOnClickListener(deletePass);
 
         button0 = (Button) findViewById(R.id.button0);
-        //button0.setTypeface(xpressive);
         button0.setOnClickListener(pinButtonHandler);
 
         button1 = (Button) findViewById(R.id.button1);
-        //button1.setTypeface(xpressive);
         button1.setOnClickListener(pinButtonHandler);
 
         button2 = (Button) findViewById(R.id.button2);
-        //button2.setTypeface(xpressive);
         button2.setOnClickListener(pinButtonHandler);
 
 
         button3 = (Button) findViewById(R.id.button3);
-        //button3.setTypeface(xpressive);
         button3.setOnClickListener(pinButtonHandler);
 
         button4 = (Button) findViewById(R.id.button4);
-        //button4.setTypeface(xpressive);
         button4.setOnClickListener(pinButtonHandler);
 
         button5 = (Button) findViewById(R.id.button5);
-        //button5.setTypeface(xpressive);
         button5.setOnClickListener(pinButtonHandler);
 
         button6 = (Button) findViewById(R.id.button6);
-        //button6.setTypeface(xpressive);
         button6.setOnClickListener(pinButtonHandler);
 
         button7 = (Button) findViewById(R.id.button7);
-        //button7.setTypeface(xpressive);
         button7.setOnClickListener(pinButtonHandler);
 
         button8 = (Button) findViewById(R.id.button8);
-        //button8.setTypeface(xpressive);
         button8.setOnClickListener(pinButtonHandler);
 
         button9 = (Button) findViewById(R.id.button9);
-        //button9.setTypeface(xpressive);
         button9.setOnClickListener(pinButtonHandler);
 
     }
 
+    // The submit button
+    // and functionalities of the enter button
+    // send the value 1 to the arduino board to unlock the wallet
     public void addListenerOnEnterButton(View v) {
 
         button = (ImageButton) findViewById(R.id.buttonEnter);
@@ -171,7 +160,6 @@ public class PinScreen extends AppCompatActivity {
                     e.printStackTrace();
                 }
 
-
             }
 
         });
@@ -179,6 +167,7 @@ public class PinScreen extends AppCompatActivity {
 
     }
 
+    // functionalities of the exit button
     public void addListenerOnExitButton(View v) {
 
         button = (ImageButton) findViewById(R.id.buttonExit);
@@ -187,9 +176,6 @@ public class PinScreen extends AppCompatActivity {
 
             @Override
             public void onClick(View v) {
-
-//                Intent intent = new Intent(PinScreen.this, MainActivityOnPikIt.class);
-//                startActivityForResult(intent, 0);
                 finish();
 
 
@@ -199,6 +185,5 @@ public class PinScreen extends AppCompatActivity {
 
 
     }
-
 
 }
